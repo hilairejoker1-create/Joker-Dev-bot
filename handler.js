@@ -5,6 +5,7 @@ const users = require('./userstore');
 const groups = require('./groupstore');
 const limits = require('./limitstore');
 const media = require('./media');
+const {withChannel, suggestions, channelSocket} = require('./reply-links');
 
 const cmds = {};
 for (const f of fs.readdirSync(path.join(__dirname, 'commands'))) {
@@ -81,7 +82,7 @@ module.exports = async (sock, m, ctx = {}) => {
   const userSettings=users.get(sender);
   const lang=inGroup ? (groupSettings.language||'fr') : (userSettings.language||config.defaultLanguage);
   const quoted=m.message.extendedTextMessage?.contextInfo?.quotedMessage || incoming?.node.contextInfo?.quotedMessage || null;
-  const reply=t=>sock.sendMessage(jid,{text:String(t)},{quoted:m});
+  const reply=t=>sock.sendMessage(jid,{text:withChannel(t,config,lang)},{quoted:m});
   const isCommand=text.startsWith(config.prefix);
   const parts=isCommand ? text.slice(config.prefix.length).trim().split(/\s+/) : [];
   const name=isCommand ? (parts.shift()||'').toLowerCase() : '';
@@ -99,21 +100,26 @@ module.exports = async (sock, m, ctx = {}) => {
       const use=limits.consume(sender,bucket,limit);
       if(!use.ok) return reply(lang==='en' ? `⛔ Daily ${bucket} limit reached (${limit}). Try again tomorrow.` : lang==='ht' ? `⛔ Ou rive nan limit ${bucket} la (${limit}) pou jounen an. Eseye demen.` : `⛔ Tu as atteint la limite quotidienne (${limit}) pour ${bucket}. Réessaie demain.`);
     }
-    try { await cmds[name]({sock,m,args,jid,sender,isOwner,isAdmin:admin,quoted,reply,config,cmds,text,lang,downloadMedia:ctx.downloadMedia}); }
+    try { await cmds[name]({sock:channelSocket(sock,config,lang),m,args,jid,sender,isOwner,isAdmin:admin,quoted,reply,config,cmds,text,lang,downloadMedia:ctx.downloadMedia}); }
     catch(e){ console.error('cmd '+name+':',e.message); await reply('❌ Erreur : '+e.message+(inGroup?'\nℹ️ Vérifie que le bot est admin du groupe.':'')); }
     return;
   }
 
   // Ne jamais répondre aux messages émis par le compte lui-même.
-  if (m.key.fromMe || isCommand) return;
-  if (incoming && ['image','audio'].includes(incoming.type)) {
+  if (isCommand) {
+    const matches=Object.keys(cmds).filter(command=>command.startsWith(name.slice(0,2))).sort().slice(0,5);
+    await reply(`*${lang==='ht'?'Kòmand pa jwenn':lang==='en'?'Unknown command':'Commande inconnue'}*\n${matches.map(command=>config.prefix+command).join('\n')}\n\n${suggestions(config,lang)}`);
+    return;
+  }
+  if (m.key.fromMe) return;
+  if (incoming && ['image','audio','video'].includes(incoming.type)) {
     const settings=inGroup ? groupSettings : userSettings;
-    const enabled=incoming.type==='image' ? settings.autoImages!==false : settings.autoMusic!==false;
+    const enabled=incoming.type==='audio' ? settings.autoMusic!==false : settings.autoImages!==false;
     const key=jid+':'+sender+':'+incoming.type;
     if(enabled && Date.now()-(lastAutoReply.get(key)||0)>=config.autoReplyCooldownMs){
       lastAutoReply.set(key,Date.now());
-      const replies={fr:{image:'Photo reçue. 📷',audio:'Audio reçu. 🎵'},en:{image:'Photo received. 📷',audio:'Audio received. 🎵'},ht:{image:'Mwen resevwa foto a. 📷',audio:'Mwen resevwa mizik/od yo a. 🎵'}};
-      await reply((replies[lang]||replies.fr)[incoming.type]);
+      const replies={fr:{image:'Photo reçue. 📷',audio:'Audio reçu. 🎵',video:'Vidéo reçue. 🎬'},en:{image:'Photo received. 📷',audio:'Audio received. 🎵',video:'Video received. 🎬'},ht:{image:'Mwen resevwa foto a. 📷',audio:'Mwen resevwa mizik/od yo a. 🎵',video:'Mwen resevwa videyo a. 🎬'}};
+      await reply((replies[lang]||replies.fr)[incoming.type]+'\n\n'+suggestions(config,lang,incoming.type));
     }
     return;
   }
@@ -126,7 +132,7 @@ module.exports = async (sock, m, ctx = {}) => {
     if(now-previous>=config.greetingCooldownMs){
       lastGreeting.set(key,now);
       const pool=(greetingReplies[lang]||greetingReplies.fr)[greeting];
-      await reply(pick(pool));
+      await reply(pick(pool)+'\n\n'+suggestions(config,lang));
       return;
     }
   }
@@ -135,7 +141,7 @@ module.exports = async (sock, m, ctx = {}) => {
     const now=Date.now(), previous=lastAutoReply.get(key)||0;
     if(now-previous>=config.autoReplyCooldownMs){
       lastAutoReply.set(key,now);
-      await reply(pick(generalReplies[lang]||generalReplies.fr));
+      await reply(pick(generalReplies[lang]||generalReplies.fr)+'\n\n'+suggestions(config,lang));
     }
   }
 };
