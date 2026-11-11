@@ -25,11 +25,12 @@ async function main() {
     await commands[field]({...ctx,args:['on']});assert.equal(users.get(ctx.sender)[field==='autoimage'?'autoImages':'autoMusic'],true);
     await commands[field]({...ctx,jid:'g@g.us',isOwner:false,isAdmin:false,args:['off']});assert.equal(groups.get('g@g.us')[field==='autoimage'?'autoImages':'autoMusic'],undefined);
   }
-  await commands.setchannel({...ctx,isOwner:false,args:['https://whatsapp.com/channel/ABC']});assert.equal(config.channelUrl,'');
-  await commands.setchannel({...ctx,args:['https://evil.example/']});assert.equal(config.channelUrl,'');
+  const originalChannel=config.channelUrl;
+  await commands.setchannel({...ctx,isOwner:false,args:['https://whatsapp.com/channel/ABC']});assert.equal(config.channelUrl,originalChannel);
+  await commands.setchannel({...ctx,args:['https://evil.example/']});assert.equal(config.channelUrl,originalChannel);
   await commands.setchannel({...ctx,args:['https://whatsapp.com/channel/ABC']});assert.equal(config.channelUrl,'https://whatsapp.com/channel/ABC');
   config.channelUrl='';
-  for(const type of ['image','audio']) {
+  for(const type of ['image','audio','video']) {
     sends.length=0;
     const message={[type+'Message']:{mimetype:type==='image'?'image/jpeg':'audio/ogg'}};
     await handler(ctx.sock,{key:{remoteJid:ctx.jid,id:'received-'+type},message});assert.equal(sends.length,1);assert.match(sends[0].text,/reçu/);
