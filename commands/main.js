@@ -1,5 +1,6 @@
 const fs = require('fs');
 const path = require('path');
+const {suggestions} = require('../reply-links');
 const MUSIC_DIR = path.join(__dirname, '..', 'assets', 'music');
 const BANNER = path.join(__dirname, '..', 'assets', 'banner.png');
 function pickRandomMusic(){
@@ -31,14 +32,14 @@ async function sendMenu({sock,jid,m,config,cmds,lang='fr'}){
   ];
   const used=new Set();
   const sections=categories.map(([title,items])=>{
-    const found=items.filter(x=>cmds[x]); found.forEach(x=>used.add(x));
+    const found=items.filter(x=>cmds[x]).sort(); found.forEach(x=>used.add(x));
     const label=title.replace(/^[^\p{L}\p{N}]+/u,'');
-    return found.length?`*${label}*\n${found.map(x=>`  ${config.prefix}${x}`).join('\n')}` : '';
+    return found.length?`*${label}*\n────────────\n${found.map(x=>`${config.prefix}${x}`).join('\n\n')}` : '';
   }).filter(Boolean);
   const other=names.filter(x=>!used.has(x));
-  if(other.length) sections.push(`*AUTRES / OTHER*\n${other.map(x=>`  ${config.prefix}${x}`).join('\n')}`);
+  if(other.length) sections.push(`*AUTRES / OTHER*\n────────────\n${other.map(x=>`${config.prefix}${x}`).join('\n\n')}`);
   const heading=`*JOKER.MD BOT*\n────────────────────\nVersion : ${config.version}\nOwner : +${config.ownerNumber}\nPréfixe : ${config.prefix}\nLangues : Français / English / Kreyòl\nCommandes actives : ${names.length}${config.channelUrl?'\nChaîne : '+config.channelUrl:''}\n────────────────────`;
-  const menu=heading+'\n\n'+sections.join('\n\n')+'\n\n'+
+  const menu=heading+'\n\n'+suggestions(config,lang)+'\n\n'+sections.join('\n\n')+'\n\n'+
     `*QUOTAS MEMBRES*\nDivertissement : 50 utilisations / jour\nMédias/outils coûteux : 20 utilisations / jour\nLecture et réactions aux statuts : sans limite\nCommandes normales : sans limite\nPropriétaire et admins du groupe : exemptés\n\n_Joker.md bot_`;
   if(fs.existsSync(BANNER)) await sock.sendMessage(jid,{image:fs.readFileSync(BANNER),caption:heading},{quoted:m});
   await sock.sendMessage(jid,{text:menu},{quoted:m});
