@@ -4,7 +4,7 @@
   "main": "index.js",
   "scripts": {
     "start": "node index.js",
-    "test": "node test-extra30.js && node test-popular40.js && node test-commands.js"
+    "test": "node test-extra30.js && node test-popular40.js && node test-channel.js && node test-commands.js"
   },
   "dependencies": {
     "@hapi/boom": "^10.0.1",
