@@ -4,7 +4,7 @@ try { savedChannel = JSON.parse(require('fs').readFileSync(require('path').join(
 
 module.exports = {
   token: process.env.TELEGRAM_TOKEN,
-  channelUrl: process.env.CHANNEL_URL || savedChannel,
+  channelUrl: process.env.CHANNEL_URL || savedChannel || 'https://whatsapp.com/channel/0029VbDxbVnDTkK6xgnh7L1L',
   ownerNumber,
   prefix: process.env.BOT_PREFIX || '.',
   botName: 'Joker.md bot',
