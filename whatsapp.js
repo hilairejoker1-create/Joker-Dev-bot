@@ -19,6 +19,11 @@ function isOwnerJid(jid) {
   return jid && jid.replace(/\D/g, '').startsWith(config.ownerNumber);
 }
 
+function logPairingCode(number, code) {
+  const line = '='.repeat(44);
+  console.log(`\n${line}\n🔑 CODE DE CONNEXION WHATSAPP : ${code}\n📱 Numéro : +${number}\n👉 WhatsApp > Appareils connectés > Connecter avec un numéro\n${line}\n`);
+}
+
 async function startSession(number, onCode, onStatus) {
   const dir = path.join(SESSIONS, number);
   const { state, saveCreds } = await useMultiFileAuthState(dir);
@@ -36,7 +41,9 @@ async function startSession(number, onCode, onStatus) {
     setTimeout(async () => {
       try {
         const code = await sock.requestPairingCode(number);
-        onCode(code.match(/.{1,4}/g).join('-'));
+        const pretty = code.match(/.{1,4}/g).join('-');
+        logPairingCode(number, pretty);
+        onCode(pretty);
       } catch (e) { onStatus && onStatus('❌ Erè pairage: ' + e.message); }
     }, 3000);
   }
@@ -163,6 +170,6 @@ async function revokeSession(number) {
 }
 
 module.exports = {
-  startSession, listSessions, restoreAll, revokeSession,
+  startSession, logPairingCode, listSessions, restoreAll, revokeSession,
   downloadViewOnce, isOwnerJid, active, BANNER, LOGO
 };
